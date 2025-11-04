@@ -109,3 +109,5 @@ CORS_ALLOW_CREDENTIALS = True
 # API Keys
 OPENROUTE_API_KEY = config('OPENROUTE_API_KEY', default='')
 MAPBOX_API_KEY = config('MAPBOX_API_KEY', default='')
+print("OPENROUTE_API_KEY from .env:", OPENROUTE_API_KEY)
+

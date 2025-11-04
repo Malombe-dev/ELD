@@ -43,7 +43,7 @@ class HOSCalculator:
         
         # START
         stops.append({
-            'stop_type': 'start',
+            'type': 'start',
             'location': segment1['start'],
             'latitude': segment1['start_coords']['lat'],
             'longitude': segment1['start_coords']['lon'],
@@ -76,7 +76,7 @@ class HOSCalculator:
         
         # PICKUP
         stops.append({
-            'stop_type': 'pickup',
+            'type': 'pickup',
             'location': segment1['end'],
             'latitude': segment1['end_coords']['lat'],
             'longitude': segment1['end_coords']['lon'],
@@ -95,7 +95,7 @@ class HOSCalculator:
            current_driving_hours >= self.MAX_DRIVING_HOURS:
             
             stops.append({
-                'stop_type': 'rest',
+                'type': 'rest',
                 'location': segment1['end'],
                 'latitude': segment1['end_coords']['lat'],
                 'longitude': segment1['end_coords']['lon'],
@@ -130,7 +130,7 @@ class HOSCalculator:
         
         # DROPOFF
         stops.append({
-            'stop_type': 'dropoff',
+            'type': 'dropoff',
             'location': segment2['end'],
             'latitude': segment2['end_coords']['lat'],
             'longitude': segment2['end_coords']['lon'],
@@ -143,9 +143,9 @@ class HOSCalculator:
         
         # Calculate totals
         total_driving_hours = sum(s.get('duration_hours', 0) for s in stops 
-                                 if s['stop_type'] not in ['rest', 'pickup', 'dropoff'])
+                                 if s['type'] not in ['rest', 'pickup', 'dropoff'])
         total_rest_hours = sum(s.get('duration_hours', 0) for s in stops 
-                              if s['stop_type'] == 'rest')
+                              if s['type'] == 'rest')
         total_hours = (stops[-1]['departure_time'] - stops[0]['arrival_time']).total_seconds() / 3600
         
         return {
@@ -173,7 +173,7 @@ class HOSCalculator:
             if hours_since_break >= self.BREAK_AFTER_DRIVING_HOURS:
                 # 30-minute break
                 stops.append({
-                    'stop_type': 'break',
+                    'type': 'break',
                     'location': self._interpolate_location(
                         start_loc, end_loc, 
                         distance_driven / segment_drive_time
@@ -195,7 +195,7 @@ class HOSCalculator:
                current_duty_hours >= self.MAX_DUTY_WINDOW:
                 
                 stops.append({
-                    'stop_type': 'rest',
+                    'type': 'rest',
                     'location': self._interpolate_location(
                         start_loc, end_loc,
                         distance_driven / segment_drive_time
@@ -237,7 +237,7 @@ class HOSCalculator:
                 
                 # Fuel stop
                 stops.append({
-                    'stop_type': 'fuel',
+                    'type': 'fuel',
                     'location': self._interpolate_location(
                         start_loc, end_loc,
                         (segment_drive_time - remaining_drive_time) / segment_drive_time

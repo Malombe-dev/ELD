@@ -1,92 +1,152 @@
+# geocoding.py
 import requests
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
+import time
 from django.conf import settings
 
-
 class GeocodingService:
-    '''
-    Handle geocoding and reverse geocoding operations
-    '''
-    
     def __init__(self):
-        self.geolocator = Nominatim(user_agent="eld_log_generator")
+        self.openroute_api_key = settings.OPENROUTE_API_KEY
+        self.cache = {}
     
-    def geocode(self, location_string):
-        '''
-        Convert address string to coordinates
-        Returns: {'lat': float, 'lon': float, 'display_name': str}
-        '''
+    def geocode(self, location_name):
+        """Geocode a location name to coordinates"""
+        if not location_name or location_name.strip() == "":
+            return None
+            
+        location_name = location_name.strip()
+        
+        # Check cache first
+        if location_name.lower() in self.cache:
+            print(f"📍 Using cached coordinates for: {location_name}")
+            return self.cache[location_name.lower()]
+        
+        print(f"🔍 Geocoding: {location_name}")
+        
+        # Try OpenRouteService first
+        result = self._geocode_openroute(location_name)
+        
+        # If OpenRouteService fails, try OpenStreetMap Nominatim as fallback
+        if not result:
+            print(f"🔄 OpenRouteService failed, trying Nominatim for: {location_name}")
+            result = self._geocode_nominatim(location_name)
+        
+        if result:
+            print(f"✅ Geocoding successful: {location_name} -> {result}")
+            self.cache[location_name.lower()] = result
+        else:
+            print(f"❌ Geocoding failed: {location_name}")
+        
+        return result
+    
+    def _geocode_openroute(self, location_name):
+        """Try OpenRouteService with retries"""
+        for attempt in range(3):
+            try:
+                print(f"  Trying OpenRouteService (attempt {attempt + 1}/3)...")
+                
+                response = requests.get(
+                    "https://api.openrouteservice.org/geocode/search",
+                    params={
+                        'api_key': self.openroute_api_key,
+                        'text': location_name,
+                        'size': 1
+                    },
+                    timeout=10
+                )
+                
+                print(f"  OpenRouteService status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('features') and len(data['features']) > 0:
+                        coords = data['features'][0]['geometry']['coordinates']
+                        # OpenRouteService returns [lon, lat]
+                        result = {
+                            'lon': coords[0],
+                            'lat': coords[1],
+                            'source': 'openroute'
+                        }
+                        print(f"  ✅ OpenRouteService found: {result}")
+                        return result
+                    else:
+                        print(f"  ❌ OpenRouteService: No features found in response")
+                
+            except requests.exceptions.Timeout:
+                print(f"  ⏰ Timeout on attempt {attempt + 1} for '{location_name}'")
+                if attempt < 2:
+                    time.sleep(2)
+                continue
+            except Exception as e:
+                print(f"  ❌ OpenRouteService error: {e}")
+                break
+        
+        return None
+    
+    def _geocode_nominatim(self, location_name):
+        """Fallback to OpenStreetMap Nominatim"""
         try:
-            location = self.geolocator.geocode(location_string)
-            if location:
-                return {
-                    'lat': location.latitude,
-                    'lon': location.longitude,
-                    'display_name': location.address
-                }
-            return None
+            print(f"  Trying Nominatim...")
+            
+            response = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    'q': location_name,
+                    'format': 'json',
+                    'limit': 1
+                },
+                timeout=10,
+                headers={'User-Agent': 'ELD-Log-Generator/1.0'}
+            )
+            
+            print(f"  Nominatim status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0:
+                    # Nominatim returns {'lat': '1.234', 'lon': '5.678'} as strings
+                    result = {
+                        'lon': float(data[0]['lon']),
+                        'lat': float(data[0]['lat']),
+                        'source': 'nominatim'
+                    }
+                    print(f"  ✅ Nominatim found: {result}")
+                    return result
+                else:
+                    print(f"  ❌ Nominatim: No results found")
+                    
         except Exception as e:
-            print(f"Geocoding error: {e}")
-            return None
+            print(f"  ❌ Nominatim error: {e}")
+        
+        return None
     
-    def reverse_geocode(self, lat, lon):
-        '''
-        Convert coordinates to address
-        '''
-        try:
-            location = self.geolocator.reverse(f"{lat}, {lon}")
-            if location:
-                return location.address
-            return None
-        except Exception as e:
-            print(f"Reverse geocoding error: {e}")
-            return None
-    
-    def calculate_distance(self, point1, point2):
-        '''
-        Calculate distance between two points in miles
-        point1, point2: tuples of (lat, lon)
-        '''
-        distance_km = geodesic(point1, point2).kilometers
-        distance_miles = distance_km * 0.621371
-        return distance_miles
+    def calculate_distance(self, coord1, coord2):
+        """Calculate approximate distance using Haversine formula"""
+        from math import radians, sin, cos, sqrt, atan2
+        
+        # Extract lat/lon from coordinate dictionaries
+        lat1, lon1 = coord1[0], coord1[1]  # coord1 is (lat, lon) tuple
+        lat2, lon2 = coord2[0], coord2[1]  # coord2 is (lat, lon) tuple
+        
+        # Convert to radians
+        lat1, lon1 = radians(lat1), radians(lon1)
+        lat2, lon2 = radians(lat2), radians(lon2)
+        
+        # Haversine formula
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        
+        # Earth radius in miles
+        radius = 3958.8
+        distance = radius * c
+        
+        print(f"📏 Distance calculation: {distance:.1f} miles")
+        return distance
 
 
 class OpenRouteService:
-    '''
-    Interface with OpenRouteService API for routing
-    '''
-    
+    """Placeholder for routing functionality"""
     def __init__(self):
         self.api_key = settings.OPENROUTE_API_KEY
-        self.base_url = "https://api.openrouteservice.org/v2"
-    
-    def get_route(self, coordinates):
-        '''
-        Get route between multiple coordinates
-        coordinates: list of [lon, lat] pairs
-        '''
-        if not self.api_key:
-            raise Exception("OpenRouteService API key not configured")
-        
-        url = f"{self.base_url}/directions/driving-car"
-        
-        headers = {
-            'Authorization': self.api_key,
-            'Content-Type': 'application/json'
-        }
-        
-        payload = {
-            'coordinates': coordinates,
-            'instructions': True,
-            'units': 'mi'
-        }
-        
-        try:
-            response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"OpenRouteService error: {e}")
-            return None

@@ -56,15 +56,20 @@ class RouteCalculator:
         '''
         Calculate distance and duration for a route segment
         '''
+        print(f"📏 Calculating segment: {start_name} to {end_name}")
+        print(f"  Start coords: {start_coords}")
+        print(f"  End coords: {end_coords}")
+        
+        # Make sure we're passing (lat, lon) tuples to calculate_distance
         distance = self.geocoding.calculate_distance(
-            (start_coords['lat'], start_coords['lon']),
-            (end_coords['lat'], end_coords['lon'])
+            (start_coords['lat'], start_coords['lon']),  # (lat, lon)
+            (end_coords['lat'], end_coords['lon'])       # (lat, lon)
         )
         
         duration_hours = distance / self.AVERAGE_SPEED_MPH
-        
-        # Calculate fuel stops needed
         fuel_stops_needed = int(distance / self.FUEL_INTERVAL_MILES)
+        
+        print(f"  Result: {distance:.1f} miles, {duration_hours:.1f} hours, {fuel_stops_needed} fuel stops")
         
         return {
             'start': start_name,
@@ -75,7 +80,7 @@ class RouteCalculator:
             'duration_hours': duration_hours,
             'fuel_stops_needed': fuel_stops_needed
         }
-    
+
     def calculate_intermediate_point(self, start_coords, end_coords, fraction):
         '''
         Calculate coordinates at a fraction of the distance between start and end

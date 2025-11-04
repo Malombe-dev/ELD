@@ -4,11 +4,14 @@ from rest_framework import serializers
 from .models import Trip, Stop, ELDLog, LogSegment
 
 
+
 class TripInputSerializer(serializers.Serializer):
-    current_location = serializers.CharField(max_length=255)
-    pickup_location = serializers.CharField(max_length=255)
-    dropoff_location = serializers.CharField(max_length=255)
-    current_cycle_hours = serializers.FloatField(min_value=0, max_value=70)
+    origin = serializers.CharField(max_length=255)        
+    destination = serializers.CharField(max_length=255)   
+    waypoints = serializers.ListField(required=False)      
+    current_cycle_hours = serializers.FloatField(min_value=0, max_value=70, required=False, default=0)
+    driver_name = serializers.CharField(max_length=255, required=False)
+    carrier_name = serializers.CharField(max_length=255, required=False)
 
 
 class LogSegmentSerializer(serializers.ModelSerializer):
@@ -57,6 +60,18 @@ class StopSerializer(serializers.ModelSerializer):
     
     def get_title(self, obj):
         return obj.get_stop_type_display()
+    
+
+
+class SaveLogSerializer(serializers.Serializer):
+    date = serializers.CharField()
+    segments = serializers.ListField()
+    totalMiles = serializers.FloatField()
+    summary = serializers.DictField()
+    tripData = serializers.DictField()
+    remarks = serializers.CharField(required=False, allow_blank=True)
+    driver = serializers.CharField(required=False)
+    carrier = serializers.CharField(required=False)    
 
 
 class RouteResponseSerializer(serializers.Serializer):
