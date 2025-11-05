@@ -55,14 +55,19 @@ class Stop(models.Model):
         return f"{self.get_stop_type_display()} - {self.location}"
 
 
+
 class ELDLog(models.Model):
     trip = models.ForeignKey(Trip, related_name='logs', on_delete=models.CASCADE)
     log_date = models.DateField()
     day_number = models.IntegerField()
     
+  
     driver_name = models.CharField(max_length=255, default='Driver')
     carrier_name = models.CharField(max_length=255, default='Carrier')
-    vehicle_number = models.CharField(max_length=100, blank=True)
+    carrier_address = models.CharField(max_length=500, blank=True)  
+    home_terminal = models.CharField(max_length=500, blank=True)    
+    vehicle_number = models.CharField(max_length=100, blank=True)   
+    trailer_number = models.CharField(max_length=100, blank=True)   
     
     total_miles = models.FloatField(default=0)
     
@@ -79,7 +84,6 @@ class ELDLog(models.Model):
     
     def __str__(self):
         return f"Log Day {self.day_number} - {self.log_date}"
-
 
 class LogSegment(models.Model):
     STATUS_CHOICES = [

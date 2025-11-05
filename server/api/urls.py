@@ -14,4 +14,6 @@ urlpatterns = [
     # Trip management
     path('trips/', views.TripListView.as_view(), name='trip-list'),
     path('trips/<int:pk>/', views.TripDetailView.as_view(), name='trip-detail'),
+    
+    path('download-logs-pdf/', views.DownloadLogsPDFView.as_view(), name='download_logs_pdf'),
 ]
